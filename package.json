@@ -1,0 +1,18 @@
+{
+  "name": "com.lumencat92.navagenthandler",
+  "version": "0.1.0",
+  "displayName": "NavHandler",
+  "description": "Handling Nav Agent with State",
+  "unity": "2022.3",
+  "author": {
+    "name": "LumenCat",
+    "email": "LumenCat@gmail.com"
+  },
+  "dependencies": 
+  {
+      "com.lumencat.timecounter": "https://github.com/lumenCat92/TimeCounter.git#v1.0.0",
+      "com.lumencat.gizmosdrawer": "https://github.com/lumenCat92/GizmosDrawer.git#v1.0.0",
+      "com.lumencat92.extentioner": "https://github.com/lumenCat92/Extentioner.git#v1.0.0",
+      "com.lumencat92.simplefsm": "https://github.com/lumenCat92/SimpleFSM.git#v1.0.0"
+  }
+}
