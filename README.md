@@ -2,6 +2,9 @@
 <div align="center">
 
 ![LumenCat92.jpg](https://github.com/lumenCat92/NavAgentHandler/blob/main/Image/LumenCat92.jpg)
+
+* 본 작업은 유니티 엔진을 대상으로 합니다.
+* this work target to Unity Engine.
 </div>
 
 # NavAgentHandler
