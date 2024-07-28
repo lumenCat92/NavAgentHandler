@@ -79,11 +79,20 @@ public class NavAgentHandler : MonoBehaviour
             
             // checking module is works different cause it just for cheking that agent could reach to target or not.
             case NavAgentModule.StateList.Cheking:
-                var checkingModule = StateModuleHandler.GetModule((int)NavAgentModule.StateList.Cheking);
-                if (checkingModule.CanEnter(moduleData))
+                    if (NavMesh.SamplePosition(moduleData.BasicModulerSetting.Target.position, out NavMeshHit hit, moduleData.BasicModulerSetting.StopDist, NavMeshAgent.areaMask))
+                    {
+                        moduleData.CheckingMoudlerSetting.OnFindWay(true);
+                        return;
+                    }
+                    moduleData.CheckingMoudlerSetting.OnFindWay(false);
+                    break;
+            case NavAgentModule.StateList.Non:
+                OnDoneHandler = onDoneHandler;
+                if (StateModuleHandler.IsPlayingModuleRunning(out StateModule module))
                 {
-                    checkingModule.Enter();
+                    module?.Exit();
                 }
+                DoWhenStateDone(LastStateModuleData);
                 break;
         }
     }
@@ -153,15 +162,21 @@ public abstract partial class NavAgentModule
         public class BasicOption
         {
             public Transform Target { private set; get; } // destination point
-            public bool IsLookAtOn { private set; get; } // *1) its make agent ratation lock. 
+            public bool ShouldSequenceProcessing { private set; get; } = true; // module process proceeds async
+            public bool ShouldRotateManually { private set; get; } // *1) its make agent ratation lock. 
             public float StopDist { private set; get; } // *2) its same with agent stop. but it also effecting dist that end module state.
-            public float AgentSpeed { private set; get; } // controlling agent speed.
             public bool ShouldActiveDeadLockCheck { private set; get; } // *3) its for stuck situation between multiple agent. 
             public Action OnFailedToFindWay { private set; get; } // call-back when cant find the way.
 
-            public NavAgentModuleData(StateList targetState, Transform target, bool isLookAtOn, float stopDist, float agentSpeed, bool shouldActiveDeadLockCheck, Action doWhenCantFindWay)
+            public BasicOption(Transform target, bool shouldSequenceProcessing, bool isLookAtOn, float stopDist, bool shouldActiveDeadLockCheck, Action doWhenCantFindWay)
             {
-                BasicMudulerSetting = new BasicOption(targetState, target, isLookAtOn, stopDist, agentSpeed, shouldActiveDeadLockCheck, doWhenCantFindWay);
+                Target = target;
+                ShouldSequenceProcessing = shouldSequenceProcessing;
+                ShouldRotateManually = isLookAtOn;
+                StopDist = stopDist;
+
+                ShouldActiveDeadLockCheck = shouldActiveDeadLockCheck;
+                OnFailedToFindWay = doWhenCantFindWay;
             }
         }
     }
@@ -252,7 +267,7 @@ public abstract partial class NavAgentModule : StateModule
     // enter module
     protected override void OnEnterModule()
     {
-        Agent.updateRotation = ModuleData.BasicModulerSetting.IsLookAtOn ? false : true;
+        Agent.updateRotation = ModuleData.BasicModulerSetting.ShouldRotateManually ? false : true;
         Agent.stoppingDistance = ModuleData.BasicModulerSetting.StopDist;
         Agent.speed = ModuleData.BasicModulerSetting.AgentSpeed;
         Agent.obstacleAvoidanceType = ObstacleAvoidanceType.HighQualityObstacleAvoidance;
@@ -354,15 +369,21 @@ public abstract partial class NavAgentModule
         public class BasicOption
         {
             public Transform Target { private set; get; } // destination point
-            public bool IsLookAtOn { private set; get; } // its make agent ratation lock. 
+            public bool ShouldSequenceProcessing { private set; get; } = true; // module process proceeds async
+            public bool ShouldRotateManually { private set; get; } // its make agent ratation lock. 
             public float StopDist { private set; get; } // its same with agent stop. but it also effecting dist that end module state.
-            public float AgentSpeed { private set; get; } // controlling agent speed.
             public bool ShouldActiveDeadLockCheck { private set; get; } // its for stuck situation between multiple agent. 
             public Action OnFailedToFindWay { private set; get; }
 
-            public NavAgentModuleData(StateList targetState, Transform target, bool isLookAtOn, float stopDist, float agentSpeed, bool shouldActiveDeadLockCheck, Action doWhenCantFindWay)
+            public BasicOption(Transform target, bool shouldSequenceProcessing, bool isLookAtOn, float stopDist, bool shouldActiveDeadLockCheck, Action doWhenCantFindWay)
             {
-                BasicMudulerSetting = new BasicOption(targetState, target, isLookAtOn, stopDist, agentSpeed, shouldActiveDeadLockCheck, doWhenCantFindWay);
+                Target = target;
+                ShouldSequenceProcessing = shouldSequenceProcessing;
+                ShouldRotateManually = isLookAtOn;
+                StopDist = stopDist;
+
+                ShouldActiveDeadLockCheck = shouldActiveDeadLockCheck;
+                OnFailedToFindWay = doWhenCantFindWay;
             }
         }
 
@@ -632,9 +653,9 @@ public abstract partial class NavAgentModule
         public class BasicOption
         {
             public Transform Target { private set; get; }
-            public bool IsLookAtOn { private set; get; }
+            public bool ShouldSequenceProcessing { private set; get; } = true;
+            public bool ShouldRotateManually { private set; get; }
             public float StopDist { private set; get; }
-            public float AgentSpeed { private set; get; }
             public bool ShouldActiveDeadLockCheck { private set; get; }
             public Action OnFailedToFindWay { private set; get; }
 
@@ -988,8 +1009,6 @@ if there has no more position for hiding, hidingState will call-back that OnFail
 
 cause this state just for checking, it will not change state. 
 
-its working as state it self.
-
 ```csharp
 
 public void StartState(NavAgentModule.NavAgentModuleData moduleData, Action onDoneHandler)
@@ -1005,11 +1024,20 @@ public void StartState(NavAgentModule.NavAgentModuleData moduleData, Action onDo
             break;
         // checking module is works different cause it just for cheking that agent could reach to target or not.
         case NavAgentModule.StateList.Cheking:
-            var checkingModule = StateModuleHandler.GetModule((int)NavAgentModule.StateList.Cheking);
-            if (checkingModule.CanEnter(moduleData))
+                    if (NavMesh.SamplePosition(moduleData.BasicModulerSetting.Target.position, out NavMeshHit hit, moduleData.BasicModulerSetting.StopDist, NavMeshAgent.areaMask))
+                    {
+                        moduleData.CheckingMoudlerSetting.OnFindWay(true);
+                        return;
+                    }
+                    moduleData.CheckingMoudlerSetting.OnFindWay(false);
+                    break;
+        case NavAgentModule.StateList.Non:
+            OnDoneHandler = onDoneHandler;
+            if (StateModuleHandler.IsPlayingModuleRunning(out StateModule module))
             {
-                checkingModule.Enter();
+                module?.Exit();
             }
+            DoWhenStateDone(LastStateModuleData);
             break;
     }
 }
@@ -1045,33 +1073,6 @@ public class NavAgentModuleData : StateModuleData
 3. in the checkingState, it will let u know agent can reached to target or not.
 
 again. this is just for checking. so when this state working. state will not change.
-
-```csharp
-
-public class CheckingState_NavStateModule : NavAgentModule
-{
-    public CheckingState_NavStateModule(NavAgentModuleHandler handler) : base(handler) { }
-    public override bool IsReady()
-    {
-        return base.IsReady() && ModuleData.CheckingMoudlerSetting.OnFindWay != null;
-    }
-    protected override IEnumerator OnStartNav(NavAgentModuleData data)
-    {
-        NavMeshPath path = new NavMeshPath();
-        if (Agent.CalculatePath(data.BasicModulerSetting.Target.position, path))
-        {
-            if (path.status == NavMeshPathStatus.PathComplete)
-            {
-                data.CheckingMoudlerSetting.OnFindWay(true);
-                yield break;
-            }
-        }
-
-        data.CheckingMoudlerSetting.OnFindWay(false);
-        yield break;
-    }
-}
-```
 
 </details>
 </details>
@@ -1144,11 +1145,20 @@ public class NavAgentHandler : MonoBehaviour
             
             // checking 스테이트는 단순 체킹 용도임으로, 다른 스테이트들과 다르게 동작합니다.
             case NavAgentModule.StateList.Cheking:
-                var checkingModule = StateModuleHandler.GetModule((int)NavAgentModule.StateList.Cheking);
-                if (checkingModule.CanEnter(moduleData))
+                    if (NavMesh.SamplePosition(moduleData.BasicModulerSetting.Target.position, out NavMeshHit hit, moduleData.BasicModulerSetting.StopDist, NavMeshAgent.areaMask))
+                    {
+                        moduleData.CheckingMoudlerSetting.OnFindWay(true);
+                        return;
+                    }
+                    moduleData.CheckingMoudlerSetting.OnFindWay(false);
+                    break;
+            case NavAgentModule.StateList.Non:
+                OnDoneHandler = onDoneHandler;
+                if (StateModuleHandler.IsPlayingModuleRunning(out StateModule module))
                 {
-                    checkingModule.Enter();
+                    module?.Exit();
                 }
+                DoWhenStateDone(LastStateModuleData);
                 break;
         }
     }
@@ -1218,15 +1228,21 @@ public abstract partial class NavAgentModule
         public class BasicOption
         {
             public Transform Target { private set; get; } // 목표지잠
-            public bool IsLookAtOn { private set; get; } // *1) agent가 움직이는 동안 회전을 끕니다. 
+            public bool ShouldSequenceProcessing { private set; get; } = true; // module 진행을 비동기로 진행합니다.
+            public bool ShouldRotateManually { private set; get; } // *1) agent가 움직이는 동안 회전을 끕니다. 
             public float StopDist { private set; get; } // *2) NavMeshAgent.StoppingDistance와 동일합니다. 그러나 각 스테이트들의 끝나는 것에도 영향을 미칩니다.
-            public float AgentSpeed { private set; get; } // Agent 속도를 조절합니다.
             public bool ShouldActiveDeadLockCheck { private set; get; } // *3) 다중 에이전트간의 고착문제에 사용됩니다. 
             public Action OnFailedToFindWay { private set; get; } // 목표지점까지 도달 할 수 없을 경우 해당 함수를 통해 알립니다.
 
-            public NavAgentModuleData(StateList targetState, Transform target, bool isLookAtOn, float stopDist, float agentSpeed, bool shouldActiveDeadLockCheck, Action doWhenCantFindWay)
+            public BasicOption(Transform target, bool shouldSequenceProcessing, bool isLookAtOn, float stopDist, bool shouldActiveDeadLockCheck, Action doWhenCantFindWay)
             {
-                BasicMudulerSetting = new BasicOption(targetState, target, isLookAtOn, stopDist, agentSpeed, shouldActiveDeadLockCheck, doWhenCantFindWay);
+                Target = target;
+                ShouldSequenceProcessing = shouldSequenceProcessing;
+                ShouldRotateManually = isLookAtOn;
+                StopDist = stopDist;
+
+                ShouldActiveDeadLockCheck = shouldActiveDeadLockCheck;
+                OnFailedToFindWay = doWhenCantFindWay;
             }
         }
     }
@@ -1319,7 +1335,7 @@ public abstract partial class NavAgentModule : StateModule
     // enter module
     protected override void OnEnterModule()
     {
-        Agent.updateRotation = ModuleData.BasicModulerSetting.IsLookAtOn ? false : true;
+        Agent.updateRotation = ModuleData.BasicModulerSetting.ShouldRotateManually ? false : true;
         Agent.stoppingDistance = ModuleData.BasicModulerSetting.StopDist;
         Agent.speed = ModuleData.BasicModulerSetting.AgentSpeed;
         Agent.obstacleAvoidanceType = ObstacleAvoidanceType.HighQualityObstacleAvoidance;
@@ -1420,15 +1436,21 @@ public abstract partial class NavAgentModule
         public class BasicOption
         {
             public Transform Target { private set; get; } // 목적지점
-            public bool IsLookAtOn { private set; get; } // agent가 움직이는 동안 회전을 끕니다.  
+            public bool ShouldSequenceProcessing { private set; get; } = true; // module 진행을 비동기로 진행합니다.
+            public bool ShouldRotateManually { private set; get; } // agent가 움직이는 동안 회전을 끕니다.  
             public float StopDist { private set; get; } // NavMeshAgent.StoppingDistance와 동일합니다. 그러나 각 스테이트들의 끝나는 것에도 영향을 미칩니다.
-            public float AgentSpeed { private set; get; } // Agent 속도를 조절합니다.
             public bool ShouldActiveDeadLockCheck { private set; get; } // 다중 에이전트간의 고착문제에 사용됩니다. 
             public Action OnFailedToFindWay { private set; get; } // 목표지점까지 도달 할 수 없을 경우 해당 함수를 통해 알립니다.
 
-            public NavAgentModuleData(StateList targetState, Transform target, bool isLookAtOn, float stopDist, float agentSpeed, bool shouldActiveDeadLockCheck, Action doWhenCantFindWay)
+            public BasicOption(Transform target, bool shouldSequenceProcessing, bool isLookAtOn, float stopDist, bool shouldActiveDeadLockCheck, Action doWhenCantFindWay)
             {
-                BasicMudulerSetting = new BasicOption(targetState, target, isLookAtOn, stopDist, agentSpeed, shouldActiveDeadLockCheck, doWhenCantFindWay);
+                Target = target;
+                ShouldSequenceProcessing = shouldSequenceProcessing;
+                ShouldRotateManually = isLookAtOn;
+                StopDist = stopDist;
+
+                ShouldActiveDeadLockCheck = shouldActiveDeadLockCheck;
+                OnFailedToFindWay = doWhenCantFindWay;
             }
         }
 
@@ -1700,7 +1722,8 @@ public abstract partial class NavAgentModule
         public class BasicOption
         {
             public Transform Target { private set; get; }
-            public bool IsLookAtOn { private set; get; }
+            public bool ShouldSequenceProcessing { private set; get; } = true;
+            public bool ShouldRotateManually { private set; get; }
             public float StopDist { private set; get; }
             public float AgentSpeed { private set; get; }
             public bool ShouldActiveDeadLockCheck { private set; get; }
@@ -2058,8 +2081,6 @@ public class NavHideData
 
 단순히 체킹을 하는 용도이기 때문에 스테이트를 바꾸지 않습니다. 
 
-따라서 이는 스테이트 자체로써 동작합니다.
-
 ```csharp
 
 public void StartState(NavAgentModule.NavAgentModuleData moduleData, Action onDoneHandler)
@@ -2075,11 +2096,20 @@ public void StartState(NavAgentModule.NavAgentModuleData moduleData, Action onDo
             break;
         // checking module is works different cause it just for cheking that agent could reach to target or not.
         case NavAgentModule.StateList.Cheking:
-            var checkingModule = StateModuleHandler.GetModule((int)NavAgentModule.StateList.Cheking);
-            if (checkingModule.CanEnter(moduleData))
+                    if (NavMesh.SamplePosition(moduleData.BasicModulerSetting.Target.position, out NavMeshHit hit, moduleData.BasicModulerSetting.StopDist, NavMeshAgent.areaMask))
+                    {
+                        moduleData.CheckingMoudlerSetting.OnFindWay(true);
+                        return;
+                    }
+                    moduleData.CheckingMoudlerSetting.OnFindWay(false);
+                    break;
+        case NavAgentModule.StateList.Non:
+            OnDoneHandler = onDoneHandler;
+            if (StateModuleHandler.IsPlayingModuleRunning(out StateModule module))
             {
-                checkingModule.Enter();
+                module?.Exit();
             }
+            DoWhenStateDone(LastStateModuleData);
             break;
     }
 }
@@ -2115,30 +2145,3 @@ public class NavAgentModuleData : StateModuleData
 3. checking 스테이트는, 에이저트가 목표에 도달 할 수 있는지 여부만 알려줍니다.
 
 다시 말하지만. 이것은 단순 확인용임으로 스테이트를 바꾸지 않습니다.
-
-```csharp
-
-public class CheckingState_NavStateModule : NavAgentModule
-{
-    public CheckingState_NavStateModule(NavAgentModuleHandler handler) : base(handler) { }
-    public override bool IsReady()
-    {
-        return base.IsReady() && ModuleData.CheckingMoudlerSetting.OnFindWay != null;
-    }
-    protected override IEnumerator OnStartNav(NavAgentModuleData data)
-    {
-        NavMeshPath path = new NavMeshPath();
-        if (Agent.CalculatePath(data.BasicModulerSetting.Target.position, path))
-        {
-            if (path.status == NavMeshPathStatus.PathComplete)
-            {
-                data.CheckingMoudlerSetting.OnFindWay(true);
-                yield break;
-            }
-        }
-
-        data.CheckingMoudlerSetting.OnFindWay(false);
-        yield break;
-    }
-}
-```

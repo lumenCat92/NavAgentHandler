@@ -45,22 +45,26 @@ namespace LumenCat92.Nav
                 BasicModulerSetting = basicOption;
                 CheckingMoudlerSetting = checkingOption;
             }
+            public NavAgentModuleData(BasicOption basicOption)
+            {
+                BasicModulerSetting = basicOption;
+            }
 
             public class BasicOption
             {
                 public Transform Target { private set; get; }
-                public bool IsLookAtOn { private set; get; }
+                public bool ShouldSequenceProcessing { private set; get; } = true;
+                public bool ShouldRotateManually { private set; get; }
                 public float StopDist { private set; get; }
-                public float AgentSpeed { private set; get; }
                 public bool ShouldActiveDeadLockCheck { private set; get; }
                 public Action OnFailedToFindWay { private set; get; }
 
-                public BasicOption(Transform target, bool isLookAtOn, float stopDist, float agentSpeed, bool shouldActiveDeadLockCheck, Action doWhenCantFindWay)
+                public BasicOption(Transform target, bool shouldSequenceProcessing, bool isLookAtOn, float stopDist, bool shouldActiveDeadLockCheck, Action doWhenCantFindWay)
                 {
                     Target = target;
-                    IsLookAtOn = isLookAtOn;
+                    ShouldSequenceProcessing = shouldSequenceProcessing;
+                    ShouldRotateManually = isLookAtOn;
                     StopDist = stopDist;
-                    AgentSpeed = agentSpeed;
                     ShouldActiveDeadLockCheck = shouldActiveDeadLockCheck;
                     OnFailedToFindWay = doWhenCantFindWay;
                 }
@@ -91,15 +95,6 @@ namespace LumenCat92.Nav
                 }
             }
 
-            public class CheckingOption
-            {
-                public Action<bool> OnFindWay { private set; get; } = null;
-                public CheckingOption(Action<bool> onFindWay)
-                {
-                    OnFindWay = onFindWay;
-                }
-            }
-
             public class TrackingOption
             {
                 public bool IsNonStopTracking { private set; get; }
@@ -116,6 +111,15 @@ namespace LumenCat92.Nav
                 public HidingOption(LayerMask hidableLayer)
                 {
                     HidableLayer = hidableLayer;
+                }
+            }
+
+            public class CheckingOption
+            {
+                public Action<bool> OnFindWay { private set; get; } = null;
+                public CheckingOption(Action<bool> onFindWay)
+                {
+                    OnFindWay = onFindWay;
                 }
             }
         }

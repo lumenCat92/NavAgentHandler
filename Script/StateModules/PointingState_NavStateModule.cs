@@ -15,6 +15,7 @@ namespace LumenCat92.Nav
         protected override IEnumerator OnStartNav(NavAgentModuleData data)
         {
             var hasBeenCheckNearBy = false;
+            var hasAddedTrafficData = false;
 
             var findWay = TrySetDestination(data.BasicModulerSetting.Target.position, ref correctedPosition);
             if (!findWay)
@@ -24,16 +25,36 @@ namespace LumenCat92.Nav
             }
 
             var state = GetStateByDist;
-            while (state != DistStateList.Reached)
+            while (IsModuleRunning && state != DistStateList.Reached)
             {
                 state = GetStateByDist;
-                if (state == DistStateList.Close || state == DistStateList.Near)
+                if (state == DistStateList.Close &&
+                    !hasBeenCheckNearBy)
                 {
-                    if (!hasBeenCheckNearBy)
+                    hasBeenCheckNearBy = true;
+                    //try add traffic point first
+                    if (hasAddedTrafficData == false &&
+                        NavTrafficManager.Instance.TryAddTrafficNearBy(
+                                        agent: Agent,
+                                        sessionKey: ModuleData,
+                                        IsSessionRunning: (key) => { return key == ModuleData; },
+                                        maxAddingCount: ModuleData.PointingModulerSetting.TrafficDataSetting.MaxWaitingCount,
+                                        allowedStayingTime: ModuleData.PointingModulerSetting.TrafficDataSetting.MaxStayingTime,
+                                        stayingTime: ModuleData.PointingModulerSetting.StayingTime,
+                                        position: correctedPosition,
+                                        castRadius: GetAgentRadius * 2.5f))
                     {
-                        hasBeenCheckNearBy = true;
+                        // after added to traffic manager, traffic Manager will handle agent.
+                        hasAddedTrafficData = true;
+                    }
+                    // if it failed to added to traffic manager, agent should handle the problem it-self.
+                    else if (hasAddedTrafficData == false)
+                    {
+                        // if it can change position
                         if (data.PointingModulerSetting.CanPositionChange)
                         {
+
+                            // try to reach to near position
                             if (state == DistStateList.Near)
                                 break;
                             // it will set near position
@@ -51,34 +72,15 @@ namespace LumenCat92.Nav
                             else
                             {
                                 Debug.Log("ray Failed");
+                                ModuleData.BasicModulerSetting.OnFailedToFindWay?.Invoke();
                             }
                         }
                         else
                         {
-                            if (ModuleData.BasicModulerSetting.StopDist < GetAgentRadius * 2.5f)
-                            {
-                                // trying add treffic point
-                                if (!NavTrafficManager.Instance.TryAddTrafficNearBy(
-                                        agent: Agent,
-                                        sessionKey: ModuleData,
-                                        IsSessionRunning: (key) => { return key == ModuleData; },
-                                        maxAddingCount: ModuleData.PointingModulerSetting.TrafficDataSetting.MaxWaitingCount,
-                                        allowedStayingTime: ModuleData.PointingModulerSetting.TrafficDataSetting.MaxStayingTime,
-                                        stayingTime: ModuleData.PointingModulerSetting.StayingTime,
-                                        position: correctedPosition,
-                                        castRadius: GetAgentRadius * 2.5f))
-                                {
-                                    ModuleData.BasicModulerSetting.OnFailedToFindWay?.Invoke();
-                                    break;
-                                }
-                            }
+                            ModuleData.BasicModulerSetting.OnFailedToFindWay?.Invoke();
+                            break;
                         }
                     }
-                }
-                else
-                {
-                    if (Agent.stoppingDistance != ModuleData.BasicModulerSetting.StopDist)
-                        Agent.stoppingDistance = ModuleData.BasicModulerSetting.StopDist;
                 }
 
                 yield return new WaitForSeconds(NavCheckingTime);

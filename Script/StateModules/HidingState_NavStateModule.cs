@@ -25,7 +25,7 @@ namespace LumenCat92.Nav
                 yield break;
             }
 
-            while (GetStateByDist != DistStateList.Reached)
+            while (IsModuleRunning && GetStateByDist != DistStateList.Reached)
             {
                 yield return new WaitForSeconds(NavCheckingTime);
             }

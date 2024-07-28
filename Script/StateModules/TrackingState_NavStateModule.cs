@@ -26,8 +26,9 @@ namespace LumenCat92.Nav
             }
 
             var state = GetStateByDist;
-            while (ModuleData.TrackingModulerSetting.IsNonStopTracking ||
-                    (!ModuleData.TrackingModulerSetting.IsNonStopTracking && state != DistStateList.Reached))
+            while (IsModuleRunning &&
+                    (ModuleData.TrackingModulerSetting.IsNonStopTracking ||
+                    (!ModuleData.TrackingModulerSetting.IsNonStopTracking && state != DistStateList.Reached)))
             {
                 state = GetStateByDist;
                 //if target Moved, position will be re-calc

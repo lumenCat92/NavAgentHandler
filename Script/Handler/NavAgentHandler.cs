@@ -1,8 +1,5 @@
 using System;
-using System.Collections;
-using System.Runtime.InteropServices;
 using LumenCat92.SimpleFSM;
-using LumenCat92.TimeCounter;
 using UnityEngine;
 using UnityEngine.AI;
 
@@ -12,25 +9,25 @@ namespace LumenCat92.Nav
     [RequireComponent(typeof(NavMeshObstacle))]
     public class NavAgentHandler : MonoBehaviour
     {
-        public NavMeshAgent navMeshAgent { private set; get; }
-        NavMeshObstacle navMeshObstacle { set; get; }
+        public NavMeshAgent NavMeshAgent { private set; get; }
+        NavMeshObstacle NavMeshObstacle { set; get; }
         NavAgentModuleHandler StateModuleHandler { set; get; }
         public bool AllowedChekingDeadLock { set; get; } = true;
         private Action OnDoneHandler { set; get; }
-        bool isInterrupting = false;
+        StateModule.StateModuleData LastStateModuleData { set; get; }
         //Gizmos
         [field: SerializeField] public bool ShouldDrawGizmos { set; get; } = false;
         public Func<bool> OnSetDrawingGizmos { get => () => ShouldDrawGizmos; }
 
         private void Awake()
         {
-            navMeshAgent = GetComponent<NavMeshAgent>();
-            navMeshObstacle = GetComponent<NavMeshObstacle>();
+            NavMeshAgent = GetComponent<NavMeshAgent>();
+            NavMeshObstacle = GetComponent<NavMeshObstacle>();
             TurnOnAgent(true);
 
             StateModuleHandler =
                 new NavAgentModuleHandler(
-                    navMeshAgent,
+                    NavMeshAgent,
                     (coroutine) => StartCoroutine(coroutine),
                     (coroutine) => StopCoroutine(coroutine),
                     DoWhenStateDone,
@@ -38,31 +35,43 @@ namespace LumenCat92.Nav
                     );
         }
 
-        public void StartState(NavAgentModule.NavAgentModuleData moduleData, Action onDoneHandler)
+        public void SetSpeed(float speed) => NavMeshAgent.speed = speed;
+
+        public void StartState(NavAgentModule.NavAgentModuleData moduleData, float speed, Action onDoneHandler)
         {
+            LastStateModuleData = moduleData;
             switch (moduleData.State)
             {
                 case NavAgentModule.StateList.Pointing:
                 case NavAgentModule.StateList.Tracking:
                 case NavAgentModule.StateList.Hiding:
                     OnDoneHandler = onDoneHandler;
-                    isInterrupting = StateModuleHandler.IsPlayingModuleRunning();
                     TurnOnAgent(true);
                     StateModuleHandler.EnterModule((int)moduleData.State, moduleData);
+                    SetSpeed(speed);
                     break;
                 case NavAgentModule.StateList.Cheking:
-                    var checkingModule = StateModuleHandler.GetModule((int)NavAgentModule.StateList.Cheking);
-                    if (checkingModule.CanEnter(moduleData))
+                    if (NavMesh.SamplePosition(moduleData.BasicModulerSetting.Target.position, out NavMeshHit hit, moduleData.BasicModulerSetting.StopDist, NavMeshAgent.areaMask))
                     {
-                        checkingModule.Enter();
+                        moduleData.CheckingMoudlerSetting.OnFindWay(true);
+                        return;
                     }
+                    moduleData.CheckingMoudlerSetting.OnFindWay(false);
+                    break;
+                case NavAgentModule.StateList.Non:
+                    OnDoneHandler = onDoneHandler;
+                    if (StateModuleHandler.IsPlayingModuleRunning(out StateModule module))
+                    {
+                        module?.Exit();
+                    }
+                    DoWhenStateDone(LastStateModuleData);
                     break;
             }
         }
 
-        public void DoWhenStateDone()
+        private void DoWhenStateDone(StateModule.StateModuleData stateModuleData)
         {
-            if (!isInterrupting)
+            if (ReferenceEquals(stateModuleData, LastStateModuleData))
             {
                 TurnOnAgent(false);
                 OnDoneHandler?.Invoke();
@@ -74,14 +83,29 @@ namespace LumenCat92.Nav
             //dont change the sequence.
             if (shouldTurnOn)
             {
-                navMeshObstacle.enabled = !shouldTurnOn;
-                navMeshAgent.enabled = shouldTurnOn;
+                NavMeshObstacle.enabled = !shouldTurnOn;
+                NavMeshAgent.enabled = shouldTurnOn;
             }
             else
             {
-                navMeshAgent.enabled = shouldTurnOn;
-                navMeshObstacle.enabled = !shouldTurnOn;
+                NavMeshAgent.enabled = shouldTurnOn;
+                NavMeshObstacle.enabled = !shouldTurnOn;
             }
+        }
+
+        public Vector3 GetNaviDirection()
+        {
+            var direction = Vector3.zero;
+            if (NavMeshAgent != null)
+            {
+                if (NavMeshAgent.isOnNavMesh
+                        && !NavMeshAgent.isStopped)
+                {
+                    direction = NavMeshAgent.velocity.normalized;
+                }
+            }
+
+            return direction;
         }
     }
 }

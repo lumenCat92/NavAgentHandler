@@ -98,7 +98,6 @@ namespace LumenCat92.Nav
                     case StateList.Pointing: list.Add(new PointingState_NavStateModule(handler)); break;
                     case StateList.Tracking: list.Add(new TrackingState_NavStateModule(handler)); break;
                     case StateList.Hiding: list.Add(new HidingState_NavStateModule(handler)); break;
-                    case StateList.Cheking: list.Add(new CheckingState_NavStateModule(handler)); break;
                 }
             }
             return list;
@@ -107,15 +106,13 @@ namespace LumenCat92.Nav
         public override bool IsReady() { return ModuleData != null; }
         protected override void OnEnterModule()
         {
-            Agent.updateRotation = ModuleData.BasicModulerSetting.IsLookAtOn ? false : true;
+            Agent.updateRotation = ModuleData.BasicModulerSetting.ShouldRotateManually ? false : true;
             Agent.stoppingDistance = ModuleData.BasicModulerSetting.StopDist;
-            Agent.speed = ModuleData.BasicModulerSetting.AgentSpeed;
             Agent.obstacleAvoidanceType = ObstacleAvoidanceType.HighQualityObstacleAvoidance;
             Agent.avoidancePriority = 10;
             var needNavi = Vector3.Distance(ModuleData.BasicModulerSetting.Target.position, Agent.transform.position) > eachStateDist[(int)DistStateList.Reached].Value;
             if (needNavi)
             {
-                //StateModuleHandler.OnTurnOnAgent(true);
                 // CheckingCroweded();
                 if (ModuleData.BasicModulerSetting.ShouldActiveDeadLockCheck)
                     CheckingDeadLock();
@@ -160,10 +157,6 @@ namespace LumenCat92.Nav
                     {
                         OnDrawGizmosSphere(hit.position, 0.02f, 2f, Color.blue);
                         return true;
-                    }
-                    else
-                    {
-                        Debug.Log(Agent.name + " failed " + searchRadius);
                     }
                 }
             }
@@ -260,32 +253,31 @@ namespace LumenCat92.Nav
             }
 
             Agent.obstacleAvoidanceType = ObstacleAvoidanceType.HighQualityObstacleAvoidance;
-            Agent.isStopped = true;
             Agent.avoidancePriority = 99;
             Agent.stoppingDistance = 100f;
-            base.ModuleData = null;
             TimeCounterManager.Instance.StopTimeCounting(deadLockTimeData);
             if (isFindWay)
-                StateModuleHandler.OnDoneWork?.Invoke();
+                StateModuleHandler.OnDoneWork?.Invoke(ModuleData);
+            base.ModuleData = null;
         }
 
         public override void EnterModuleToException() { }
         protected IEnumerator StartNav(NavAgentModuleData data, Action DoWhenDone)
         {
-            Agent.isStopped = false;
-            yield return StateModuleHandler.OnStartCoroutine(OnStartNav(data));
-            // var leftDist = Agent.transform.position.GetDistance(correctedPosition);
-            // var dir = Agent.transform.position.GetOverrideY(0).GetDirection(correctedPosition.GetOverrideY(0));
-            // var leftTime = leftDist / Agent.speed;
-            // var eachTime = leftTime / Time.fixedDeltaTime;
-            // var lerpTime = Mathf.InverseLerp(0, leftTime, eachTime);
-            // var eachDist = Mathf.Lerp(0, leftTime, lerpTime);
-            // for (float time = 0f; time < leftTime; time += eachTime)
-            // {
-            //     Agent.transform.position += dir * eachDist;
-            //     yield return new WaitForSeconds(eachTime);
-            // }
-            DoWhenDone.Invoke();
+            if (data.BasicModulerSetting.ShouldSequenceProcessing)
+            {
+                yield return StateModuleHandler.OnStartCoroutine(OnStartNav(data));
+            }
+            else
+            {
+                StateModuleHandler.OnStartCoroutine(OnStartNav(data));
+            }
+
+            if (IsModuleRunning)
+            {
+                Debug.Log("module Running = do when done");
+                DoWhenDone.Invoke();
+            }
         }
         protected abstract IEnumerator OnStartNav(NavAgentModuleData data);
 

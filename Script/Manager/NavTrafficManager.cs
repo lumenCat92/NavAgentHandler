@@ -47,6 +47,7 @@ namespace LumenCat92.Nav
                 if (data.IsInfoEmpty)
                 {
                     trafficDatas.RemoveAt(i--);
+                    continue;
                 }
 
                 var dist = data.Position.GetDistance(position);
@@ -60,10 +61,6 @@ namespace LumenCat92.Nav
             if (targetData == null)
             {
                 targetData = new TrafficData(maxAddingCount, allowedStayingTime, position);
-            }
-            else
-            {
-                Debug.Log("found");
             }
 
             var canAdd = targetData.CanAdd(agent, stayingTime);
@@ -102,9 +99,12 @@ namespace LumenCat92.Nav
                     yield return new WaitForSeconds(checkingTime);
                 }
 
-                for (float dist = trafficData.Position.GetDistance(infoData.Agent.transform.position); dist < infoData.CastRadius * 2.5f; dist = trafficData.Position.GetDistance(infoData.Agent.transform.position))
+                if (trafficData.HasNextInfo())
                 {
-                    yield return new WaitForSeconds(checkingTime);
+                    for (float dist = trafficData.Position.GetDistance(infoData.Agent.transform.position); dist < infoData.CastRadius * 2.5f; dist = trafficData.Position.GetDistance(infoData.Agent.transform.position))
+                    {
+                        yield return new WaitForSeconds(checkingTime);
+                    }
                 }
 
                 StartCoroutine(HandlingTraffic(trafficData.GetNextInfo(), trafficData));
@@ -135,10 +135,9 @@ namespace LumenCat92.Nav
             }
             public void AddingAgent(NavMeshAgent agent, object sessionKey, float castRadius, Func<object, bool> IsSessionRunning)
             {
-                Debug.Log("adding Agent " + agent.name + " before was " + (InfoList.Count - 1 < 0 ? "nothing" : InfoList[InfoList.Count - 1].Agent.name));
                 InfoList.Add(new NavAgentModuleInfoData(agent, sessionKey, castRadius, IsSessionRunning));
                 agent.avoidancePriority = AddingCount++;
-                agent.stoppingDistance = agent.transform.lossyScale.x * agent.radius * 2.5f;
+                agent.stoppingDistance += agent.transform.lossyScale.x * agent.radius * 2.5f;
             }
 
             public bool CanAdd(NavMeshAgent agent, float stayingTime)
@@ -159,7 +158,6 @@ namespace LumenCat92.Nav
                 {
                     var data = InfoList[0];
                     InfoList.RemoveAt(0);
-                    Debug.Log("remove Agent " + data.Agent.name + " next will be " + (InfoList.Count == 0 ? "null" : InfoList[0].Agent.name));
                     return data;
                 }
                 else
@@ -167,6 +165,11 @@ namespace LumenCat92.Nav
                     IsInfoEmpty = true;
                     return null;
                 }
+            }
+
+            public bool HasNextInfo()
+            {
+                return InfoList.Count > 0;
             }
 
             public class NavAgentModuleInfoData

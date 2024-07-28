@@ -13,9 +13,9 @@ namespace LumenCat92.Nav
         public NavMeshAgent navMeshAgent { private set; get; }
         public Func<IEnumerator, Coroutine> OnStartCoroutine { private set; get; }
         public Action<Coroutine> OnStopCoroutine { private set; get; }
-        public Action OnDoneWork { private set; get; }
+        public Action<StateModule.StateModuleData> OnDoneWork { private set; get; }
         public Func<bool> OnDrawGizmos { private set; get; }
-        public NavAgentModuleHandler(NavMeshAgent agent, Func<IEnumerator, Coroutine> onStartCoroutine, Action<Coroutine> onStopCoroutine, Action onDoneWork, Func<bool> onDrawGizmos)
+        public NavAgentModuleHandler(NavMeshAgent agent, Func<IEnumerator, Coroutine> onStartCoroutine, Action<Coroutine> onStopCoroutine, Action<StateModule.StateModuleData> onDoneWork, Func<bool> onDrawGizmos)
         {
             navMeshAgent = agent;
             OnStartCoroutine = onStartCoroutine;
